@@ -1,6 +1,5 @@
-$(document).ready(function () {
-  let xhr = new XMLHttpRequest();
-  xhr.open("GET", "https://pokeapi.co/api/v2/pokemon-color/yellow", true);
+$(function () {
+  let pokemons = [];
 
   function addStripes() {
     $("table tr").removeClass("striped");
@@ -9,7 +8,16 @@ $(document).ready(function () {
 
   function afterRender() {
     $('[data-toggle="popover"]').popover();
-    $("table th").css("color", "darkblue");
+    $("table th").css("color", "darkBlue");
+
+    $("table tr").on("mouseenter", (event) => {
+      $(event.currentTarget).css("backgroundColor", "yellow");
+    });
+
+    $("table tr").on("mouseleave", (event) => {
+      $(event.currentTarget).removeAttr("style");
+    });
+
     addStripes();
 
     setTimeout(function () {
@@ -19,45 +27,59 @@ $(document).ready(function () {
       hideElements.closest("tr").remove();
       addStripes();
 
-      const info = $("<div></div>")
+      $("<div></div>")
         .insertAfter($("#pokemon-list"))
         .text("Skriveno: " + hideElements.length);
     }, 2000);
   }
 
   function fillList() {
-    const data = JSON.parse(xhr.response);
-    const source = $("#pokemon-list").html();
+    const source = document.getElementById("pokemon-list").innerHTML;
     const template = Handlebars.compile(source);
-    const context = {
-      pokemon: data.pokemon_species.slice(0, 20),
-      tableClass: "table",
-    };
+    const context = { pokemon: pokemons.slice(0, 20), tableClass: "table" };
     const html = template(context);
 
-    $("#result").html(html);
+    document.getElementById("result").innerHTML = html;
 
     afterRender();
-    resizeWindow();
   }
 
-  xhr.onload = function () {
-    fillList();
-  };
-
-  xhr.send();
-
-  $("body").on("mouseenter", "table tr", function () {
-    $(this).css("background-color", "yellow");
+  $(window).on("resize", () => {
+    console.log($(window).width());
   });
 
-  $("body").on("mouseleave", "table tr", function () {
-    $(this).css("background-color", "");
-  });
-
-  function resizeWindow() {
-    $(window).on("resize", function () {
-      console.log(window.innerWidth);
+  function getDetails(pokemon) {
+    return $.ajax(pokemon.url, {
+      success: function (data) {
+        pokemons.push(data);
+      },
     });
   }
+
+  function getAllDetails(data) {
+    const getArray = [];
+
+    $.when
+      .apply(
+        $,
+        data.pokemon_species.map(function (pokemon) {
+          return getDetails(pokemon);
+        })
+      )
+      .done(function (result) {
+        console.log(pokemons);
+        fillList();
+      });
+  }
+
+  $.ajax("https://pokeapi.co/api/v2/pokemon-color/yellow", {
+    success: function (data, textStatus, jqXHR) {
+      getAllDetails(data);
+    },
+    error: function (jqXHR, textStatus, errorThrown) {
+      $("<div></div>")
+        .insertAfter($("#pokemon-list"))
+        .text("Error: " + textStatus);
+    },
+  });
 });
